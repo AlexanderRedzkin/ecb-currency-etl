@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+logs/
+plugins/
+.env
+clickhouse-data/
+postgres-db-volume/
