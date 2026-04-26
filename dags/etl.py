@@ -12,39 +12,33 @@ CH_PORT = 9000
 CH_DATABASE = 'default'
 CH_TABLE = 'currency'
 
-def fetch_rates(start_date: str, end_date: str) -> List[Dict[str, Any]]:
+def fetch_rates(start_date, end_date):
+    import requests
+    import xml.etree.ElementTree as ET
+    from datetime import datetime
 
-    base_url = "https://data-api.ecb.europa.eu/service/data/EXR/"
-    series_key = "D.USD.EUR.SP00.A"
-    url = f"{base_url}{series_key}?startPeriod={start_date}&endPeriod={end_date}"
+    url = f"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?startPeriod={start_date}&endPeriod={end_date}"
     headers = {"Accept": "application/vnd.sdmx.structurespecificdata+xml;version=2.1"}
-
     response = requests.get(url, headers=headers, verify=False)
     response.raise_for_status()
 
     root = ET.fromstring(response.content)
     namespaces = {
-        'generic': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/data/generic',
-        'message': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message'
+        'generic': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/data/generic'
     }
 
     rates = []
-
     for obs in root.findall('.//generic:Obs', namespaces):
-        time_dim = obs.find('.//generic:ObsDimension', namespaces)
-        date_str = time_dim.attrib.get('value') if time_dim is not None else None
-        obs_value = obs.find('.//generic:ObsValue', namespaces)
-        value = obs_value.attrib.get('value') if obs_value is not None else None
-
-        if date_str and value:
-            try:
+        obs_dim = obs.find('generic:ObsDimension', namespaces)
+        obs_val = obs.find('generic:ObsValue', namespaces)
+        if obs_dim is not None and obs_val is not None:
+            date_str = obs_dim.attrib.get('value')
+            value_str = obs_val.attrib.get('value')
+            if date_str and value_str:
                 rates.append({
                     'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
-                    'euro': float(value)
+                    'euro': float(value_str)
                 })
-            except ValueError:
-                continue
-
     return rates
 
 
@@ -61,6 +55,7 @@ def transform_rates(raw_rates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             'created': now,
             'updated': None
         })
+    print(f"[DEBUG] transform_rates: получено {len(transformed)} записей")
     return transformed
 
 
@@ -69,7 +64,13 @@ def load_rates(data: List[Dict[str, Any]], overwrite: bool = False, date_range: 
     Загружает данные в ClickHouse.
     Если overwrite=True и date_range=(start_date, end_date), то сначала удаляет записи за этот период.
     """
-    client = Client(host=CH_HOST, port=CH_PORT, database=CH_DATABASE)
+    client = Client(
+        host='clickhouse',
+        port=9000,
+        database='default',
+        user='default',
+        password='clickhouse'
+    )
 
     if overwrite and date_range:
         start_date, end_date = date_range
