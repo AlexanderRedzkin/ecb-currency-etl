@@ -14,6 +14,9 @@ CH_TABLE = 'currency'
 
 
 def fetch_rates(start_date, end_date):
+    import requests
+    import xml.etree.ElementTree as ET
+    from datetime import datetime
 
     url = f"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?startPeriod={start_date}&endPeriod={end_date}"
     headers = {"Accept": "application/vnd.sdmx.structurespecificdata+xml;version=2.1"}
@@ -21,21 +24,29 @@ def fetch_rates(start_date, end_date):
     response.raise_for_status()
 
     root = ET.fromstring(response.content)
-    ns = {'generic': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/data/generic'}
 
     rates = []
-    for obs in root.findall('.//generic:Obs', ns):
-        dim = obs.find('generic:ObsDimension', ns)
-        val = obs.find('generic:ObsValue', ns)
-        if dim is not None and val is not None:
-            date_str = dim.get('value')
-            value_str = val.get('value')
-            if date_str and value_str:
-                rates.append({
-                    'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
-                    'euro': float(value_str)
-                })
-    print(f"Fetched {len(rates)} records from {start_date} to {end_date}")
+    for obs in root.iter():
+        if obs.tag.endswith('}Obs'):
+
+            dim = None
+            val = None
+            for child in obs:
+                if child.tag.endswith('}ObsDimension'):
+                    dim = child
+                elif child.tag.endswith('}ObsValue'):
+                    val = child
+            if dim is not None and val is not None:
+                date_str = dim.get('value')
+                value_str = val.get('value')
+                if date_str and value_str:
+                    try:
+                        rates.append({
+                            'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
+                            'euro': float(value_str)
+                        })
+                    except ValueError:
+                        continue
     return rates
 
 
