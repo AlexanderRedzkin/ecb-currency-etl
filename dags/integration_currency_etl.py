@@ -20,7 +20,7 @@ with DAG(
 ) as dag:
     @task
     def extract(**context):
-        # ds - это строка 'YYYY-MM-DD'
+
         target_date = context['ds']
         print(f"Запрос данных за дату: {target_date}")
 
@@ -43,12 +43,11 @@ with DAG(
             print("Пропуск загрузки: пустой список данных.")
             return
 
-        # Для ежедневной задачи overwrite=False (просто добавляем новые строки)
+
         load_rates(transformed, overwrite=False)
         print(f"Успешно загружено {len(transformed)} записей.")
 
 
-    # Потоки данных
     raw_data = extract()
     transformed_data = transform(raw_data)
     load(transformed_data)

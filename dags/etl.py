@@ -17,6 +17,7 @@ CH_TABLE = 'currency'
 
 
 
+
 def fetch_rates(start_date, end_date):
     url = f"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?startPeriod={start_date}&endPeriod={end_date}"
 
@@ -32,12 +33,12 @@ def fetch_rates(start_date, end_date):
     root = ET.fromstring(response.content)
     rates = []
 
-    # Пространства имен в XML от ECB
+
     ns = {
         'generic': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/data/generic',
     }
 
-    # Ищем все элементы Observation (Obs)
+
     for obs in root.findall('.//generic:Obs', ns):
         # В формате Generic Data дата лежит в ObsDimension, а значение в ObsValue
         obs_dim = obs.find('generic:ObsDimension', ns)
@@ -76,10 +77,7 @@ def transform_rates(raw_rates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def load_rates(data: List[Dict[str, Any]], overwrite: bool = False, date_range: tuple = None):
-    """
-    Загружает данные в ClickHouse.
-    Если overwrite=True и date_range=(start_date, end_date), то сначала удаляет записи за этот период.
-    """
+
     client = Client(
         host='clickhouse',
         port=9000,

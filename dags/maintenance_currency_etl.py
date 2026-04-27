@@ -17,7 +17,7 @@ with DAG(
         start_date=datetime(2025, 1, 1),
         catchup=False,
         tags=['maintenance', 'currency'],
-        # Эти параметры будут видны в интерфейсе Airflow при запуске "Trigger DAG w/ config"
+
         params={
             'start_date': '2026-01-01',
             'end_date': '2026-01-10'
@@ -25,7 +25,6 @@ with DAG(
 ) as dag:
     @task
     def extract(**kwargs):
-        # Достаем параметры из kwargs['params']
         params = kwargs.get('params', {})
         start = params.get('start_date')
         end = params.get('end_date')
@@ -60,7 +59,6 @@ with DAG(
         print("Данные успешно загружены.")
 
 
-    # Соединяем задачи
     raw_data = extract()
     transformed_data = transform(raw_data)
     load(transformed_data)
