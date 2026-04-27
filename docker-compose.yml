@@ -1,11 +1,9 @@
-version: '3.8'
-
 x-airflow-common:
   &airflow-common
   build: .
   environment:
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-    - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
     - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
   volumes:
@@ -37,6 +35,9 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
     volumes:
       - ./clickhouse/init-db.sql:/docker-entrypoint-initdb.d/init.sql
       - clickhouse-data:/var/lib/clickhouse
@@ -62,6 +63,7 @@ services:
     environment:
       - AIRFLOW_WWW_USER_USERNAME=airflow
       - AIRFLOW_WWW_USER_PASSWORD=airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
 
   webserver:
     <<: *airflow-common

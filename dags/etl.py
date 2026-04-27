@@ -4,7 +4,9 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Dict, Any
 from clickhouse_driver import Client
-
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime
 
 
 CH_HOST = 'clickhouse'
@@ -13,40 +15,46 @@ CH_DATABASE = 'default'
 CH_TABLE = 'currency'
 
 
-def fetch_rates(start_date, end_date):
-    import requests
-    import xml.etree.ElementTree as ET
-    from datetime import datetime
 
+
+def fetch_rates(start_date, end_date):
     url = f"https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?startPeriod={start_date}&endPeriod={end_date}"
-    headers = {"Accept": "application/vnd.sdmx.structurespecificdata+xml;version=2.1"}
-    response = requests.get(url, headers=headers, verify=False)
-    response.raise_for_status()
+
+    headers = {"Accept": "application/vnd.sdmx.genericdata+xml;version=2.1"}
+
+    try:
+        response = requests.get(url, headers=headers, verify=False)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Ошибка при запросе к ECB: {e}")
+        return []
 
     root = ET.fromstring(response.content)
-
     rates = []
-    for obs in root.iter():
-        if obs.tag.endswith('}Obs'):
 
-            dim = None
-            val = None
-            for child in obs:
-                if child.tag.endswith('}ObsDimension'):
-                    dim = child
-                elif child.tag.endswith('}ObsValue'):
-                    val = child
-            if dim is not None and val is not None:
-                date_str = dim.get('value')
-                value_str = val.get('value')
-                if date_str and value_str:
-                    try:
-                        rates.append({
-                            'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
-                            'euro': float(value_str)
-                        })
-                    except ValueError:
-                        continue
+    # Пространства имен в XML от ECB
+    ns = {
+        'generic': 'http://www.sdmx.org/resources/sdmxml/schemas/v2_1/data/generic',
+    }
+
+    # Ищем все элементы Observation (Obs)
+    for obs in root.findall('.//generic:Obs', ns):
+        # В формате Generic Data дата лежит в ObsDimension, а значение в ObsValue
+        obs_dim = obs.find('generic:ObsDimension', ns)
+        obs_val = obs.find('generic:ObsValue', ns)
+
+        if obs_dim is not None and obs_val is not None:
+            date_str = obs_dim.get('value')
+            value_str = obs_val.get('value')
+
+            try:
+                rates.append({
+                    'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
+                    'euro': float(value_str)
+                })
+            except (ValueError, TypeError):
+                continue
+
     return rates
 
 
