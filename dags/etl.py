@@ -1,7 +1,4 @@
 import uuid
-import requests
-import xml.etree.ElementTree as ET
-from datetime import datetime
 from typing import List, Dict, Any
 from clickhouse_driver import Client
 import requests
